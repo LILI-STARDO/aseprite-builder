@@ -7,6 +7,12 @@ on:
     paths:
       - 'BuildLog.md'
   workflow_dispatch:
+
+# 在顶层添加全局权限
+permissions:
+  contents: write
+  id-token: write
+
 env:
   BUILD_TYPE: Release
 
@@ -30,25 +36,32 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     needs: fetch-aseprite-info
+    # 保留 job 级别的权限声明
     permissions:
       contents: write
+      id-token: write
     outputs:
       download-link: ${{ needs.fetch-aseprite-info.outputs.download-link }}
       release-tag: ${{ needs.fetch-aseprite-info.outputs.release-tag }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: ncipollo/release-action@v1
+      - uses: actions/checkout@v4  # 升级到 v4
+      - name: Create Release
+        uses: ncipollo/release-action@v1
         with:
           tag: ${{ needs.fetch-aseprite-info.outputs.release-tag }}
           body: Aseprite-${{ needs.fetch-aseprite-info.outputs.release-tag }}
           skipIfReleaseExists: true
           token: ${{ secrets.GITHUB_TOKEN }}
+          # 添加以下选项避免验证错误
+          allowUpdates: true
+          makeLatest: true
 
   build-aseprite:
     name: Build Aseprite
     needs: create-release
     permissions:
       contents: write
+      id-token: write
     runs-on: ${{ matrix.os }}
     strategy:
         matrix:
@@ -133,3 +146,4 @@ jobs:
           file: aseprite/build/bin/Aseprite-${{ needs.create-release.outputs.release-tag }}-${{ runner.os }}.zip
           asset_name: Aseprite-${{ needs.create-release.outputs.release-tag }}-${{ runner.os }}.zip
           tag: ${{ needs.create-release.outputs.release-tag }}
+          overwrite: true  # 添加此选项
